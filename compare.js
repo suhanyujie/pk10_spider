@@ -5,8 +5,6 @@ const co = require('co');
 const Promise = require('promise');
 const dbconf = require('./dbconf.json');
 
-
-let originData = [];
 var Compare = {
 	// 获取2条记录
 	getTwoData : function(){
@@ -55,26 +53,31 @@ var Compare = {
 	getNextChampion : function(connection, period){
 		return new Promise(function(resolve,reject){
 			let whereStr = ' AND periods='+period;
-			whereStr += ' AND origin_date>"2016-09-07 00:00:00" AND origin_date<"2016-09-08 00:00:00"';
+			///whereStr += ' AND origin_date>"2016-09-07 00:00:00" AND origin_date<"2016-09-08 00:00:00"';
 			let sql = 'SELECT num1 FROM pk10_history WHERE 1=1 '+whereStr+' order by periods limit 1';
 			connection.query( sql, function(err, result){
-				if(err)throw(err);
+				if(err){
+					console.log(err.code);
+					throw(err);
+				}
 				//connection.end();
 				resolve(result);
 			});
 		});
 	},
-	getTwo : function(period){
-		let connection = mysql.createConnection(dbconf);
+	getTwo : function(period,connection){
 		let whereStr = '';
 		if(typeof(period)!='undefined' && period>0){
 			whereStr += ' AND periods>='+period;
 		}
-		whereStr += ' AND origin_date>"2016-09-07 00:00:00" AND origin_date<"2016-09-08 00:00:00"';
+		//whereStr += ' AND origin_date>"2016-09-07 00:00:00" AND origin_date<"2016-09-08 00:00:00"';
 		let sql = 'SELECT * FROM pk10_history WHERE 1=1 '+whereStr+' order by periods ASC LIMIT 2';
 		return new Promise(function(resolve,reject){
 			let tmpRes = connection.query( sql, function(err, result){
-				if(err)throw(err);
+				if(err){
+					console.log(err.code);
+					throw(err);
+				}
 				//connection.end();
 				resolve(result);
 			});
@@ -82,7 +85,7 @@ var Compare = {
 	},
 	getFirstPeriod : function(connection){
 		let whereStr = '';
-		whereStr += ' AND origin_date>"2016-09-07 00:00:00" AND origin_date<"2016-09-08 00:00:00"';
+		//whereStr += ' AND origin_date>"2016-09-07 00:00:00" AND origin_date<"2016-09-08 00:00:00"';
 		let sql = 'SELECT * FROM pk10_history WHERE 1=1 '+whereStr+' order by periods ASC LIMIT 1';
 		return new Promise(function(resolve,reject){
 			connection.query( sql, function(err, result){
@@ -93,68 +96,83 @@ var Compare = {
 	}
 };// end of object
 
-var run = co(function *(initPeriod){
-	let originData,sixData,periodArr,finalData,maxPeriod,winFlag = false;
-	let followNumArr = [];
+main();
 
-	let followNum = 1,middlePeriod = 0;
-	let connection = mysql.createConnection(dbconf);
-	if(typeof(initPeriod)=='undefined' || !initPeriod){
-		console.log('没有设定初始化期数！以当天第一次的期数开始！');
-		let firstData = yield Compare.getFirstPeriod(connection);
-		initPeriod = firstData[0].periods;
-	}
-	let count = 0;
-	while(initPeriod){
-		if(count > 10){
-			console.log('count达到设定次数[10001]！');
-			break;
+
+function main(){
+	co(function *(initPeriod){
+		let originData,sixData,periodArr,finalData,maxPeriod,winFlag = false;
+		let followNumArr = [];
+
+		let followNum = 1,middlePeriod = 0;
+		//let connection = mysql.createConnection(dbconf);
+		let connection = mysql.createConnection(dbconf);
+		if(typeof(initPeriod)=='undefined' || !initPeriod){
+			console.log('没有设定初始化期数！以当天第一次的期数开始！');
+			let firstData = yield Compare.getFirstPeriod(connection);
+			initPeriod = firstData[0].periods;
+			console.log(firstData);
 		}
-		originData = yield Compare.getTwo(initPeriod);
-		sixData = yield Compare.getSixNum(originData);
-		periodArr = yield Compare.getPeriods(originData);
-		finalData = yield Compare.getFinalNum(sixData);
-		maxPeriod = Math.max(periodArr[0],periodArr[1]);
-		if(finalData.length != 5){
-			// 跳过这一期，用下一期作对比
-			initPeriod = maxPeriod;
-			continue;
-		}
-		for(let i=0;i<8;i++){
-			// 和下一期冠军作对比
-			let nextChampion = yield Compare.getNextChampion(connection,++maxPeriod);
-			nextChampion = nextChampion.length>0 ? nextChampion[0].num1 : 0;
-			if(!nextChampion){
-				console.log('已经找不到下一期的冠军号码啦！');
-				initPeriod = 0;
+		let count = 0;
+		while(initPeriod ){
+			if(count > 179){
+				console.log('count达到设定次数[10001]！');
 				break;
 			}
-			//console.log('开始第'+(count+1)+'次的对比！',nextChampion);
-			if(finalData.indexOf(nextChampion) > -1){
-				// 说明中奖,重置跟随次数为1
-				//console.log('跟随次数：'+followNum+'|此次买号结束~');
-				followNumArr.push(followNum);
-				followNum = 1;
+			originData = yield Compare.getTwo(initPeriod,connection);
+			sixData = yield Compare.getSixNum(originData);
+			periodArr = yield Compare.getPeriods(originData);
+			finalData = yield Compare.getFinalNum(sixData);
+			maxPeriod = Math.max(periodArr[0],periodArr[1]);
+			if(finalData.length != 5){
+				// 跳过这一期，用下一期作对比
 				initPeriod = maxPeriod;
-				winFlag = true;
-				break;
+				continue;
 			}
-			followNum++;
+			for(let i=0;i<8;i++){
+				// 和下一期冠军作对比
+				let nextChampion = yield Compare.getNextChampion(connection,++maxPeriod);
+				nextChampion = nextChampion.length>0 ? nextChampion[0].num1 : 0;
+				if(!nextChampion){
+					console.log('已经找不到下一期的冠军号码啦！');
+					initPeriod = 0;
+					break;
+				}
+				//console.log('开始第'+(count+1)+'次的对比！',nextChampion);
+				if(finalData.indexOf(nextChampion) > -1){
+					// 说明中奖,重置跟随次数为1
+					//console.log('跟随次数：'+followNum+'|此次买号结束~');
+					followNumArr.push(followNum);
+					followNum = 1;
+					initPeriod = maxPeriod;
+					winFlag = true;
+					break;
+				}
+				followNum++;
+			}
+			count++;
+			if(winFlag){
+				continue;
+			}
+		}// end of while
+		console.log(followNumArr);
+		if(followNumArr.length > 0){
+			console.log(Math.max.apply(null, followNumArr));
+		} else {
+			console.log('已经结束啦~但还没有对比的数据！');
 		}
-		count++;
-		if(winFlag){
-			continue;
-		}
-	}// end of while
-	console.log(followNumArr);
-	if(followNumArr.length > 0){
-		console.log(Math.max.apply(null, followNumArr));
-	} else {
-		console.log('已经结束啦~但还没有对比的数据！');
-	}
+		connection.end();
+		//console.log(connection);
+	})// end of run func
+	.catch( error=>console.log('end of compare...', error) )
+    .then( (connection)=>{
+        console.log('释放资源！',connection);
+        //确保断开所有数据库连接
+        connection.end();
+    })
 
-	connection.destroy();
-})// end of run func
+}// end of main
+
 
 console.log('end~');
 
