@@ -1,0 +1,22 @@
+{
+  "name": "pk10",
+  "version": "1.0.0",
+  "description": "this applition just for pk10 playing,In the event of any accident, refuses to accept any responsibility",
+  "main": "index.js",
+  "scripts": {
+    "test": "echo \"Error: no test specified\" && exit 1"
+  },
+  "keywords": [
+    "pk10"
+  ],
+  "author": "suhy",
+  "license": "ISC",
+  "dependencies": {
+    "async": "^2.0.1",
+    "bufferhelper": "^0.2.1",
+    "co": "^4.6.0",
+    "moment": "^2.14.1",
+    "mysql": "^2.11.1",
+    "promise": "^7.1.1"
+  }
+}
