@@ -66,62 +66,61 @@ function* insertData111(connection,dataObj) {
 
 
 co(function*() {
+	var setYear = '2016';
+	var post_data = {
+		time : setYear + '-08-07',
+		date : setYear + '-08-23'
+	};
+	post_data = querystring.stringify(post_data);
 
-var setYear = '2016';
-var post_data = {
-	time : setYear + '-08-07',
-	date : setYear + '-08-23'
-};
-post_data = querystring.stringify(post_data);
+	// console.log(post_data);
 
-// console.log(post_data);
+	// set the request options
+	var post_options = {
+	    host: 'www.pk108.cc',
+	    port: '80',
+	    path: '/PK10/KaijiangSearch',
+	    method: 'POST',
+	    headers: {
+	        'Content-Type': 'application/x-www-form-urlencoded',
+	        'Referer':'http://www.pk108.cc/PK10/Kaijiang.html'
+	    }
+	};
+	// http://www.pk10we.com/pk10/kj?date=2015-09-23 
+	var post_options2 = {
+		host: 'www.pk10we.com',
+		port: '80',
+		path: '/pk10/kj?',
+		method: 'GET',
+		query: '',
+		headers: {
+	        'Referer':'http://www.pk10we.com/pk10/'
+	    }
+	};
+	post_options2.path += post_data;
 
-// set the request options
-var post_options = {
-    host: 'www.pk108.cc',
-    port: '80',
-    path: '/PK10/KaijiangSearch',
-    method: 'POST',
-    headers: {
-        'Content-Type': 'application/x-www-form-urlencoded',
-        'Referer':'http://www.pk108.cc/PK10/Kaijiang.html'
-    }
-};
-// http://www.pk10we.com/pk10/kj?date=2015-09-23 
-var post_options2 = {
-	host: 'www.pk10we.com',
-	port: '80',
-	path: '/pk10/kj?',
-	method: 'GET',
-	query: '',
-	headers: {
-        'Referer':'http://www.pk10we.com/pk10/'
-    }
-};
-post_options2.path += post_data;
-
-let nowTime = moment().format('YYYY-MM-DD hh:mm:ss');
-var resData = '',connection = null;
-var post_req = http.request(post_options2, function(res) {
-    res.setEncoding('utf8');
-    var chunks = [],size=0;
-    res.on('data', function (chunk) {
-		size += chunk.length;
-		chunks.push(chunk);	
-		resData += chunk;	        
-    });
-    res.on('end', function () {
-    	//var data = Buffer.concat(chunks, size);
-    	//var data = chunks.join('');
-    	var $ = cheerio.load(resData);
-    	// 排除多余的tr
-    	$('.head','#history-table').remove();
-    	// 获取多个tr
-    	var tmpTotalTr = $('tr','#history-table');
-    	var totalTr = [];
-    	// 数据库连接
-		connection = mysql.createConnection(dbconf);
-    	// 这里 index为索引
+	let nowTime = moment().format('YYYY-MM-DD hh:mm:ss');
+	var resData = '',connection = null;
+	var post_req = http.request(post_options2, function(res) {
+	    res.setEncoding('utf8');
+	    var chunks = [],size=0;
+	    res.on('data', function (chunk) {
+			size += chunk.length;
+			chunks.push(chunk);	
+			resData += chunk;	        
+	    });
+	    res.on('end', function () {
+	    	//var data = Buffer.concat(chunks, size);
+	    	//var data = chunks.join('');
+	    	var $ = cheerio.load(resData);
+	    	// 排除多余的tr
+	    	$('.head','#history-table').remove();
+	    	// 获取多个tr
+	    	var tmpTotalTr = $('tr','#history-table');
+	    	var totalTr = [];
+	    	// 数据库连接
+			connection = mysql.createConnection(dbconf);
+	    	// 这里 index为索引
 	    	tmpTotalTr.map((index)=>{
 	    		// 获取期数
 	    		let period = tmpTotalTr.eq(index).find('td').eq(0).find('.p').text();
@@ -147,118 +146,24 @@ var post_req = http.request(post_options2, function(res) {
 		    	
 				let res = yield insertData111(connection,dataObj);
 	    		
-	    	});
-    	return false;
-    	return ;
-    	connection = mysql.createConnection(dbconf);
-    	let sqls = {
-			insertSql : "INSERT INTO pk10_history(periods,num1,num2,num3,num4,num5,num6,num7,num8,num9,num10,date) VALUES (:periods,:num1,:num2,:num3,:num4,:num5,:num6,:num7,:num8,:num9,:num10,:date)",
-			sqlTest : "INSERT INTO pk10_history(periods,num1,num2,num3,num4,num5,num6,num7,num8,num9,num10,date) VALUES (5555552,1,2,3,4,5,6,7,8,9,10,'2016-09-06 13:32:54')",
-			sql1 : "INSERT INTO pk10_history set ? "
+	    	});// end of map
+	    });
 
-		};
-		let resDataObj = JSON.parse(resData);
-		let dataObj = {},tmpKey = '',tmpRes=null,promise=null,promiseArr = [],timeStr='';
-		new Promise(function(resolve){
-			let i = 1;
-			resDataObj.data.map(task=>{
-				timeStr = task.c_getdatatime;
-				timeStr = timeStr.match(/\d+/);
-				timeStr = parseInt(timeStr[0]);
-				dataObj = {
-					periods	: task.c_num,
-					origin_date : moment(timeStr).format('YYYY-MM-DD HH:mm:ss'),// task.c_getdatatime
-					insert_date : nowTime,
-					origin_date : nowTime
-				};
-				for(let i=1;i<=10;i++){
-					tmpKey = 'c_n'+i;
-					dataObj['num'+i] = task[tmpKey];
-				}
-				
-		    	let tmpRes = connection.query(sqls.sql1,dataObj,function(err, result){
-		    		if (err) throw err;
-					console.log(result.insertId);
-				});
-				if(i >= 179){
-					resolve(function(){
-						console.log('insert complete!');
-					});
-				}
-				i++;
-				//promiseArr.push(promise);
-			});
-		}).then(function(){
-			console.log('This is then!');
-			connection.end();
-		}).catch(function(err){
-			throw (err);
-		});
-		
-    });
-
-});
-post_req.write(post_data);
-post_req.end();
+	});
+	post_req.write(post_data);
+	post_req.end();
 
 })
+.then(data=>console.log(data))
 .catch( error=>console.log('Webmonitor catched', error) );// end of co
 
 
-var PkShop = {
-	getAdjacentNum : function(){
-
-	}
-};
 
 
-function doStoreData(resData){
+function doStoreData(dataObj){
 	co(function*(){
-		let dbconf = {
-			"host"     : "localhost",
-			"port"     : 3306,
-			"user"     : "root",
-			"password" : "123456",
-			"database" : "bbs_test",
-			"insecureAuth": true,
-			"charset"  : "utf8"
-		};
-		let resDataObj = JSON.parse(resData);
-		// fs.writeFile('tmp.txt',resData,function(err){
-		// 	console.log(err);
-		// });
-		//console.log(resDataObj.times);
-		//创建数据库连接
-	    let conn = new MysqlConnection(dbconf);
-	    let sqls = {
-			insertSql : "INSERT INTO pk10_history(periods,num1,num2,num3,num4,num5,num6,num7,num8,num9,num10,date) VALUES (:periods,:num1,:num2,:num3,:num4,:num5,:num6,:num7,:num8,:num9,:num10,:date)",
-			sqlTest : "INSERT INTO pk10_history(periods,num1,num2,num3,num4,num5,num6,num7,num8,num9,num10,date) VALUES (5555552,1,2,3,4,5,6,7,8,9,10,'2016-09-06 13:32:54')",
-			sql1 : "INSERT INTO pk10_history set ? "
 
-		};
-
-		let dataObj = {},tmpKey = '',tmpRes=null,promise=null,promiseArr = [];
-
-		resDataObj.data.map(task=>{
-			dataObj = {
-				periods	: task.c_num,
-				date 	: nowTime,
-			};
-			for(let i=1;i<=10;i++){
-				tmpKey = 'c_n'+i;
-				dataObj[tmpKey] = task[tmpKey];
-			}
-			
-			console.log(res1.sql);
-			//promiseArr.push(promise);
-		});
-		//let promiseArr1 = [];
-		//promiseArr1.push(promiseArr[0]);
-
-
-		//let res1 = yield Promise.all(promiseArr1);
-
-		console.log(res1);
+		
 
 	})
 	.catch( error=>console.log('some error catched', error) )
@@ -266,7 +171,7 @@ function doStoreData(resData){
 		console.log('complete!');
         //最终调用,确保释放资源
         //确保断开所有数据库连接
-        MysqlConnection.destroyAll()
+        connection.end();
     });
 }// end of co
 
