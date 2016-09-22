@@ -1,4 +1,3 @@
-"use strict"
 const querystring = require('querystring');
 const http = require('http');
 const url = require('url');
@@ -11,6 +10,62 @@ const co = require('co');
 const Promise = require('promise');
 const dbconf = require('./dbconf.json');
 
+
+
+function recordNum(conn,taskObj){
+	let sql = `insert into pk10_history(periods,num1,num2,num3,num4,num5,num6,num7,num8,num9,num10,date) `+
+				'values (:periods,:num1,:num2,:num3,:num4,:num5,:num6,:num7,:num8,:num9,:num10,:date)';
+	conn.execute( sql, taskObj );
+	return;
+}
+// 获取号码 一个td的html
+function getPkNum(html) {
+	var $ = cheerio.load(html);
+	var iArr = $('i'),tmpEle,res=[];
+	iArr.map(index=>{
+		tmpEle = iArr.eq(index).attr('class');
+		tmpEle = tmpEle.replace('pk-no','');
+		res.push(tmpEle);
+	});
+	return res;
+}
+// 获取插入的一条数据 对象
+function getInsertDataObj(pkNumArr,otherObj) {
+	let dataObj = otherObj,tmpKey;
+	let i=1;
+	pkNumArr.map((val)=>{
+		dataObj['num'+i] = val;
+		i++;
+	});
+	return dataObj;
+}
+// 根据html获取期数
+function getPeirod(tdHtml) {
+	var $ = cheerio.load(tdHtml);
+	var firstP = $('.p').eq(0);
+
+	return firstP.text();
+}
+// 入库操作
+function* insertData111(connection,dataObj) {
+	let sqls = {
+		sql1 : "INSERT INTO pk10_history set ? "
+	};
+	return new Promise(function(resolve, reject){
+		let tmpRes = connection.query(sqls.sql1,dataObj,function(err, result){
+    		if (err) reject(err);
+			resolve(result.insertId);
+		});
+	}).then(function(msg){
+		console.log('This is then!And insertId is : ' + msg);
+		connection.end();
+	}).catch(function(error){
+		console.log(error);
+	});
+}
+
+
+co(function*() {
 
 var setYear = '2016';
 var post_data = {
@@ -66,33 +121,33 @@ var post_req = http.request(post_options2, function(res) {
     	var totalTr = [];
     	// 数据库连接
 		connection = mysql.createConnection(dbconf);
-    	// 这里 index为索引 
-    	tmpTotalTr.map((index)=>{
-    		// 获取期数
-    		let period = tmpTotalTr.eq(index).find('td').eq(0).find('.p').text();
-    		// 获取时间
-    		let timeStr = tmpTotalTr.eq(index).find('td').eq(0).find('.t').text();
-    		timeStr = setYear + '-' + timeStr;
-    		// 时间
-    		let origin_date = timeStr;
-    		// 日期
-    		let origin_day = moment(timeStr).format('YYYY-MM-DD');
-    		// 插入时间
-    		let insert_date = nowTime;
-    		let dataObj = {
-				periods : period,
-				origin_date : origin_date,
-				insert_date : insert_date,
-				origin_day : origin_day
-			};
-			// 获取号码的td
-			let numTd = tmpTotalTr.eq(index).find('td.nums').html();
-			// 拼接插入的数据对象
-			dataObj = getInsertDataObj(getPkNum(numTd),dataObj);
-	    	
-			yield insertData(connection,dataObj);
-    		
-    	});
+    	// 这里 index为索引
+	    	tmpTotalTr.map((index)=>{
+	    		// 获取期数
+	    		let period = tmpTotalTr.eq(index).find('td').eq(0).find('.p').text();
+	    		// 获取时间
+	    		let timeStr = tmpTotalTr.eq(index).find('td').eq(0).find('.t').text();
+	    		timeStr = setYear + '-' + timeStr;
+	    		// 时间
+	    		let origin_date = timeStr;
+	    		// 日期
+	    		let origin_day = moment(timeStr).format('YYYY-MM-DD');
+	    		// 插入时间
+	    		let insert_date = nowTime;
+	    		let dataObj = {
+					periods : period,
+					origin_date : origin_date,
+					insert_date : insert_date,
+					origin_day : origin_day
+				};
+				// 获取号码的td
+				let numTd = tmpTotalTr.eq(index).find('td.nums').html();
+				// 拼接插入的数据对象
+				dataObj = getInsertDataObj(getPkNum(numTd),dataObj);
+		    	
+				let res = yield insertData111(connection,dataObj);
+	    		
+	    	});
     	return false;
     	return ;
     	connection = mysql.createConnection(dbconf);
@@ -140,22 +195,14 @@ var post_req = http.request(post_options2, function(res) {
 			throw (err);
 		});
 		
-
-		//connection.end();
-    	//doStoreData(resData);
-
-		// conn.query(sqls.insertSql, function (err, res) {
-		//     console.log(res);
-		// });
-
-		//console.log(onetimetoken_data); 
-		// 将数据存储到数据库中
     });
 
 });
 post_req.write(post_data);
 post_req.end();
 
+})
+.catch( error=>console.log('Webmonitor catched', error) );// end of co
 
 
 var PkShop = {
@@ -222,58 +269,6 @@ function doStoreData(resData){
         MysqlConnection.destroyAll()
     });
 }// end of co
-
-function recordNum(conn,taskObj){
-	let sql = `insert into pk10_history(periods,num1,num2,num3,num4,num5,num6,num7,num8,num9,num10,date) `+
-				'values (:periods,:num1,:num2,:num3,:num4,:num5,:num6,:num7,:num8,:num9,:num10,:date)';
-	conn.execute( sql, taskObj );
-	return;
-}
-// 获取号码 一个td的html
-function getPkNum(html) {
-	var $ = cheerio.load(html);
-	var iArr = $('i'),tmpEle,res=[];
-	iArr.map(index=>{
-		tmpEle = iArr.eq(index).attr('class');
-		tmpEle = tmpEle.replace('pk-no','');
-		res.push(tmpEle);
-	});
-	return res;
-}
-// 获取插入的一条数据 对象
-function getInsertDataObj(pkNumArr,otherObj) {
-	let dataObj = otherObj,tmpKey;
-	let i=1;
-	pkNumArr.map((val)=>{
-		dataObj['num'+i] = val;
-		i++;
-	});
-	return dataObj;
-}
-// 根据html获取期数
-function getPeirod(tdHtml) {
-	var $ = cheerio.load(tdHtml);
-	var firstP = $('.p').eq(0);
-
-	return firstP.text();
-}
-// 入库操作
-function insertData(connection,dataObj) {
-	let sqls = {
-		sql1 : "INSERT INTO pk10_history set ? "
-	};
-	return new Promise(function(resolve, reject){
-		let tmpRes = connection.query(sqls.sql1,dataObj,function(err, result){
-    		if (err) reject(err);
-			resolve(result.insertId);
-		});
-	}).then(function(msg){
-		console.log('This is then!And insertId is : ' + msg);
-		connection.end();
-	}).catch(function(error){
-		console.log(error);
-	});
-}
 
 
 
