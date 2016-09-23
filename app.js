@@ -142,13 +142,15 @@ function main(){
 					// 拼接插入的数据对象
 					dataObj = getInsertDataObj(getPkNum(numTd),dataObj);
 
-					insertData111( connection, dataObj ).then(function(res){
-						console.log(res);
-					});
+					if(index == 0){
+						insertData111( connection, dataObj ).then(function(res){
+							console.log(res);
+						});
+					}
 		    		
 		    	});// end of map
 
-		    	
+		    	connection.end();
 		    });
 
 		});
@@ -156,10 +158,11 @@ function main(){
 		post_req.end();
 
 	})
-	.then( (data)=>{
-		console.log(data);
-	})
-	.catch( (error)=>console.log('Webmonitor catched', error) );// end of co
+	.catch( (error)=>console.log('co catched', error) )// end of co
+	.then( (connection)=>{
+		console.log('co complete->then');
+		console.log(connection);
+	});
 
 }// end of main
 
@@ -173,9 +176,6 @@ function doStoreData(dataObj){
 	.catch( error=>console.log('some error catched', error) )
 	.then( ()=>{
 		console.log('complete!');
-        //最终调用,确保释放资源
-        //确保断开所有数据库连接
-        connection.end();
     });
 }// end of co
 
