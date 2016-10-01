@@ -47,32 +47,50 @@ function getPeirod(tdHtml) {
 	return firstP.text();
 }
 // 入库操作
-var insertData111 = function(connection,dataObj) {
-	let sqls = {
-		sql1 : "INSERT INTO pk10_history set ? "
-	};
-	return new Promise(function(resolve,reject){
-		console.log('This is insertData111....');
-		let tmpRes = connection.query(sqls.sql1,dataObj,function(err, result){
+var insertData111 = function(connection, dataObj) {
+	return new Promise(function (resolve, reject){
+		let sqls = {
+			sql1 : "INSERT INTO pk10_history set ? "
+		};
+		connection.query(sqls.sql1,dataObj,function(err, result){
     		if (err) reject(err);
 			resolve(result.insertId);
 		});
 	})
 }
+var testFunc = function(param) {
+	return new Promise(function (resolve,reject) {
+		resolve('test is ok~' + param);
+	});
+}
 
-main();
+var DayNumOfMonth = function(Year,Month)
+{
+    var d = new Date(Year,Month,0);
+    return d.getDate();
+}
+// 循环打出1个月中所有的日期 
+var year = 2016;
+var month = 7;
+var days = DayNumOfMonth(2016,month);
+var dateStrPart = year+'-'+month+'-';
 
-function main(){
+for(var i=1;i<=days;i++){
+	dateStr = dateStrPart + i;
+	console.log(dateStr);
+	main(dateStr);
+}
+
+function main(dateStr){
 	co(function *(){
+		//yield testFunc();
 		var setYear = '2016';
 		var post_data = {
-			time : setYear + '-08-07',
-			date : setYear + '-08-23'
+			time : dateStr,
+			date : dateStr
 		};
 		post_data = querystring.stringify(post_data);
-
 		// console.log(post_data);
-
 		// set the request options
 		var post_options = {
 		    host: 'www.pk108.cc',
@@ -115,6 +133,7 @@ function main(){
 		    	$('.head','#history-table').remove();
 		    	// 获取多个tr
 		    	var tmpTotalTr = $('tr','#history-table');
+
 		    	var totalTr = [];
 		    	// 数据库连接
 				connection = mysql.createConnection(dbconf);
@@ -141,10 +160,12 @@ function main(){
 					let numTd = tmpTotalTr.eq(index).find('td.nums').html();
 					// 拼接插入的数据对象
 					dataObj = getInsertDataObj(getPkNum(numTd),dataObj);
-
-					if(index == 0){
-						insertData111( connection, dataObj ).then(function(res){
-							console.log(res);
+					//console.log(dataObj);
+					if(1){
+						let res1 = insertData111(connection,dataObj).then(function(value){
+							console.log(value);
+						}).catch(function(err){
+							console.log(err);
 						});
 					}
 		    		
@@ -159,18 +180,17 @@ function main(){
 
 	})
 	.catch( (error)=>console.log('co catched', error) )// end of co
-	.then( (connection)=>{
-		console.log('co complete->then');
-		console.log(connection);
+	.then( ()=>{
+		console.log('co then complete!');
 	});
 
 }// end of main
 
 
+
+
 function doStoreData(dataObj){
 	co(function*(){
-
-		
 
 	})
 	.catch( error=>console.log('some error catched', error) )

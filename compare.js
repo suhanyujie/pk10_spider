@@ -166,9 +166,7 @@ function main(){
 	})// end of run func
 	.catch( error=>console.log('end of compare...', error) )
     .then( (connection)=>{
-        console.log('释放资源！',connection);
-        //确保断开所有数据库连接
-        connection.end();
+        console.log('释放资源！');
     })
 
 }// end of main
